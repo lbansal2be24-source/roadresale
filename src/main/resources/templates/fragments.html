@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- Pieces that many pages share. Each page pulls them in with th:replace,
+     so they are written only once. -->
+
+<!-- 1. The <head>: page title, font and stylesheet -->
+<head th:fragment="head(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${title}">RoadResale</title>
+    <!-- Barlow: a typeface based on road signs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+
+<!-- 2. The top bar -->
+<header class="topbar" th:fragment="navbar">
+    <div class="topbar-inner">
+        <!-- The logo looks like an Indian number plate -->
+        <a class="plate" th:href="@{/}" aria-label="RoadResale home">
+            <span class="plate-ind">IND</span>
+            <span class="plate-text">RoadResale</span>
+        </a>
+        <nav class="nav-links">
+            <th:block th:if="${session.userId != null}">
+                <a th:href="@{/my-ads}">My ads</a>
+                <a th:href="@{/favourites}">Favourites</a>
+                <a th:href="@{/messages}">Messages</a>
+                <a class="btn btn-lane" th:href="@{/ads/new}">Sell a vehicle</a>
+                <span class="nav-user">
+                    <span class="avatar small" th:text="${#strings.toUpperCase(#strings.substring(session.userName, 0, 1))}">L</span>
+                    <a class="nav-logout" th:href="@{/logout}">Log out</a>
+                </span>
+            </th:block>
+            <th:block th:if="${session.userId == null}">
+                <a th:href="@{/login}">Log in</a>
+                <a class="btn btn-lane" th:href="@{/register}">Create account</a>
+            </th:block>
+        </nav>
+    </div>
+</header>
+
+<!-- 3. One ad card (used on the home page and the favourites page) -->
+<a class="card" th:fragment="adCard(ad)" th:href="@{/ads/{id}(id=${ad.id})}">
+    <div class="card-photo">
+        <img th:if="${ad.photoPath != null}" th:src="@{${ad.photoPath}}" th:alt="${ad.title}">
+        <div class="no-photo" th:if="${ad.photoPath == null}">No photo</div>
+        <span class="ribbon" th:if="${ad.sold}">Sold</span>
+    </div>
+    <div class="card-body">
+        <p class="card-price" th:text="'₹ ' + ${#numbers.formatInteger(ad.price, 1, 'COMMA')}">₹ 0</p>
+        <h3 class="card-title" th:text="${ad.title}">Ad title</h3>
+        <p class="card-facts">
+            <span th:text="${ad.vehicle.year}">2019</span>
+            <span th:text="${#numbers.formatInteger(ad.vehicle.kmDriven, 1, 'COMMA')} + ' km'">0 km</span>
+            <span th:text="${ad.vehicle.fuelType}">Petrol</span>
+        </p>
+        <p class="card-city" th:text="${ad.city}">City</p>
+    </div>
+</a>
+
+<!-- 4. The list of chats on the left of the Messages pages.
+     "activeKey" marks the chat that is open right now. -->
+<aside class="chat-list" th:fragment="chatList(chats, activeKey)">
+    <h2 class="chat-list-title">Messages</h2>
+    <p class="chat-list-empty" th:if="${chats.isEmpty()}">No chats yet. Open an ad and click "Message seller" to start one.</p>
+    <a class="chat-item" th:each="c : ${chats}"
+       th:with="otherId=${c.getOtherUserId(session.userId)}, otherName=${c.getOtherUserName(session.userId)}"
+       th:classappend="${activeKey == c.adId + '-' + otherId} ? 'active'"
+       th:href="@{/messages/{adId}/{userId}(adId=${c.adId},userId=${otherId})}">
+        <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(otherName, 0, 1))}">T</span>
+        <span class="chat-item-text">
+            <span class="chat-item-top">
+                <strong th:text="${otherName}">Name</strong>
+                <span class="chat-item-time" th:text="${c.dayLabel == 'Today'} ? ${#temporals.format(c.createdAt, 'HH:mm')} : ${c.dayLabel}">18:08</span>
+            </span>
+            <span class="chat-item-ad" th:text="${c.adTitle}">Ad title</span>
+            <span class="chat-item-preview" th:text="${c.senderId == session.userId ? 'You: ' : ''} + ${c.body}">Last message</span>
+        </span>
+    </a>
+</aside>
+
+<!-- 5. The footer -->
+<footer class="footer" th:fragment="footer">
+    <div class="footer-inner">
+        <span class="plate plate-small"><span class="plate-ind">IND</span><span class="plate-text">RoadResale</span></span>
+        <p>Used cars and bikes, sold directly between people. A UCS531 course project.</p>
+    </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Create account - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="auth">
+    <div class="panel auth-card">
+        <h1>Create an account</h1>
+        <p class="muted">One account lets you both buy and sell.</p>
+        <p class="alert alert-error" th:if="${error != null}" th:text="${error}">Error message</p>
+
+        <form class="form" th:action="@{/register}" method="post">
+            <label>Full name
+                <input type="text" name="name" maxlength="100" required autofocus th:value="${name}">
+            </label>
+            <label>Email
+                <input type="email" name="email" maxlength="150" required th:value="${email}">
+            </label>
+            <label>Phone number
+                <input type="text" name="phone" maxlength="10" required placeholder="10 digits" th:value="${phone}">
+                <span class="hint">Shown on your ads to logged-in users only.</span>
+            </label>
+            <label>Password
+                <input type="password" name="password" required>
+                <span class="hint">At least 6 characters.</span>
+            </label>
+            <button class="btn btn-lane btn-block" type="submit">Create account</button>
+        </form>
+        <p class="auth-switch">Already have an account? <a th:href="@{/login}">Log in</a></p>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>

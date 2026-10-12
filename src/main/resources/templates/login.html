@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Log in - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="auth">
+    <div class="panel auth-card">
+        <h1>Log in</h1>
+        <p class="muted">Welcome back. Log in to message sellers and manage your ads.</p>
+        <p class="alert alert-success" th:if="${param.registered != null}">Account created. Log in with your email and password.</p>
+        <p class="alert alert-error" th:if="${error != null}" th:text="${error}">Error message</p>
+
+        <form class="form" th:action="@{/login}" method="post">
+            <label>Email
+                <input type="email" name="email" required autofocus th:value="${email}">
+            </label>
+            <label>Password
+                <input type="password" name="password" required>
+            </label>
+            <button class="btn btn-lane btn-block" type="submit">Log in</button>
+        </form>
+        <p class="auth-switch">New to RoadResale? <a th:href="@{/register}">Create an account</a></p>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>

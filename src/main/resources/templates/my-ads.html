@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('My ads - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="container page">
+    <div class="section-head">
+        <h1>My ads</h1>
+        <a class="btn btn-lane" th:href="@{/ads/new}">Sell a vehicle</a>
+    </div>
+
+    <div class="empty" th:if="${ads.isEmpty()}">
+        <h3>You have no ads yet</h3>
+        <p>Post your car or bike and buyers can message you here.</p>
+        <a class="btn btn-dark" th:href="@{/ads/new}">Post your first ad</a>
+    </div>
+
+    <div class="list-row" th:each="ad : ${ads}">
+        <a class="list-thumb" th:href="@{/ads/{id}(id=${ad.id})}">
+            <img th:if="${ad.photoPath != null}" th:src="@{${ad.photoPath}}" th:alt="${ad.title}">
+            <div class="no-photo" th:if="${ad.photoPath == null}">No photo</div>
+        </a>
+        <div class="list-info">
+            <a class="list-title" th:href="@{/ads/{id}(id=${ad.id})}" th:text="${ad.title}">Ad title</a>
+            <p class="list-price" th:text="'₹ ' + ${#numbers.formatInteger(ad.price, 1, 'COMMA')}">₹ 0</p>
+            <p class="muted">
+                <span th:text="${ad.city}">City</span>
+                <span class="status" th:classappend="${ad.sold} ? 'status-sold'" th:text="${ad.sold} ? 'Sold' : 'Active'">Active</span>
+            </p>
+        </div>
+        <div class="list-actions">
+            <a class="btn btn-outline btn-small" th:href="@{/ads/{id}/edit(id=${ad.id})}">Edit</a>
+            <!-- Changes to data use POST forms, not links -->
+            <form th:if="${!ad.sold}" th:action="@{/ads/{id}/sold(id=${ad.id})}" method="post">
+                <button class="btn btn-outline btn-small" type="submit">Mark as sold</button>
+            </form>
+            <form th:action="@{/ads/{id}/delete(id=${ad.id})}" method="post" onsubmit="return confirm('Delete this ad? This cannot be undone.');">
+                <button class="btn btn-danger btn-small" type="submit">Delete</button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>

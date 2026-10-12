@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('RoadResale - Buy and sell used cars and bikes')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<!-- "searching" is true when the buyer used at least one filter -->
+<main th:with="searching=${not #strings.isEmpty(keyword) or not #strings.isEmpty(type) or not #strings.isEmpty(city)
+                          or minPrice != null or maxPrice != null or minYear != null}">
+
+    <!-- Big header with the search form -->
+    <section class="hero">
+        <div class="hero-inner">
+            <h1 class="hero-title">Buy and sell used cars and bikes</h1>
+            <p class="hero-text">Post your vehicle in two minutes and talk to buyers directly. No dealers in between.</p>
+
+            <form class="search" th:action="@{/}" method="get">
+                <label class="search-wide">
+                    <span>What are you looking for?</span>
+                    <input type="text" name="keyword" placeholder="Swift, Activa, Royal Enfield..." th:value="${keyword}">
+                </label>
+                <label>
+                    <span>Type</span>
+                    <select name="type">
+                        <option value="">Any type</option>
+                        <option value="CAR" th:selected="${type == 'CAR'}">Cars</option>
+                        <option value="BIKE" th:selected="${type == 'BIKE'}">Bikes</option>
+                    </select>
+                </label>
+                <label>
+                    <span>City</span>
+                    <input type="text" name="city" placeholder="Any city" th:value="${city}">
+                </label>
+                <label>
+                    <span>Min price (₹)</span>
+                    <input type="number" name="minPrice" min="0" placeholder="Any" th:value="${minPrice}">
+                </label>
+                <label>
+                    <span>Max price (₹)</span>
+                    <input type="number" name="maxPrice" min="0" placeholder="No limit" th:value="${maxPrice}">
+                </label>
+                <label>
+                    <span>Year from</span>
+                    <input type="number" name="minYear" min="1980" placeholder="Any" th:value="${minYear}">
+                </label>
+                <button class="btn btn-lane search-btn" type="submit">Search</button>
+            </form>
+
+            <div class="quick-links">
+                <a th:href="@{/(type='CAR')}">Browse cars</a>
+                <a th:href="@{/(type='BIKE')}">Browse bikes</a>
+            </div>
+        </div>
+        <!-- The dashed yellow line, like the middle of a road -->
+        <div class="lane-line" aria-hidden="true"></div>
+    </section>
+
+    <!-- The ads -->
+    <section class="container section">
+        <div class="section-head">
+            <h2 th:text="${searching} ? 'Search results' : 'Latest ads'">Latest ads</h2>
+            <p class="muted">
+                <span th:text="${ads.size()} + (${ads.size() == 1} ? ' vehicle' : ' vehicles')">0 vehicles</span>
+                <a th:if="${searching}" th:href="@{/}">Clear search</a>
+            </p>
+        </div>
+
+        <div class="empty" th:if="${ads.isEmpty()}">
+            <h3>No vehicles match your search</h3>
+            <p>Try a different city, or remove the price or year filter.</p>
+            <a class="btn btn-dark" th:href="@{/}">Show all vehicles</a>
+        </div>
+
+        <div class="grid">
+            <th:block th:each="ad : ${ads}">
+                <a th:replace="~{fragments :: adCard(${ad})}"></a>
+            </th:block>
+        </div>
+    </section>
+
+    <!-- How it works: a real 3-step order, so the steps are numbered -->
+    <section class="steps-band" th:if="${!searching}">
+        <div class="container">
+            <h2>How selling works</h2>
+            <ol class="steps">
+                <li>
+                    <h3>Post your ad</h3>
+                    <p>Add a photo, the price and a few details about your car or bike.</p>
+                </li>
+                <li>
+                    <h3>Chat with buyers</h3>
+                    <p>Interested buyers message you on RoadResale. Your number stays with logged-in users only.</p>
+                </li>
+                <li>
+                    <h3>Meet and sell</h3>
+                    <p>Agree on a price, meet the buyer, then mark your ad as sold.</p>
+                </li>
+            </ol>
+            <a class="btn btn-lane" th:href="@{/ads/new}">Sell a vehicle</a>
+        </div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>

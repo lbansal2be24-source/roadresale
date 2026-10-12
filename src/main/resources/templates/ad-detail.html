@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${ad.title} + ' - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="container page">
+    <p class="back"><a th:href="@{/}">&larr; Back to all vehicles</a></p>
+
+    <div class="detail">
+        <!-- Left: photo and description -->
+        <div class="detail-main">
+            <div class="detail-photo">
+                <img th:if="${ad.photoPath != null}" th:src="@{${ad.photoPath}}" th:alt="${ad.title}">
+                <div class="no-photo" th:if="${ad.photoPath == null}">No photo</div>
+                <span class="ribbon" th:if="${ad.sold}">Sold</span>
+            </div>
+
+            <div class="panel">
+                <h2>Details</h2>
+                <dl class="specs">
+                    <div><dt>Brand</dt><dd th:text="${ad.vehicle.brand}"></dd></div>
+                    <div><dt>Model</dt><dd th:text="${ad.vehicle.model}"></dd></div>
+                    <div><dt>Year</dt><dd th:text="${ad.vehicle.year}"></dd></div>
+                    <div><dt>Km driven</dt><dd th:text="${#numbers.formatInteger(ad.vehicle.kmDriven, 1, 'COMMA')} + ' km'"></dd></div>
+                    <div><dt>Fuel</dt><dd th:text="${ad.vehicle.fuelType}"></dd></div>
+                    <!-- getExtraDetails() answers differently for Car and Bike (polymorphism) -->
+                    <div><dt>Other</dt><dd th:text="${ad.vehicle.extraDetails}"></dd></div>
+                </dl>
+                <h2>Description</h2>
+                <p class="description" th:text="${#strings.isEmpty(ad.description)} ? 'The seller did not add a description.' : ${ad.description}">Description</p>
+            </div>
+        </div>
+
+        <!-- Right: price, seller and buttons -->
+        <aside class="detail-side">
+            <div class="panel price-panel">
+                <p class="type-chip" th:text="${ad.vehicle.type == 'CAR'} ? 'Car' : 'Bike'">Car</p>
+                <h1 th:text="${ad.title}">Ad title</h1>
+                <p class="big-price" th:text="'₹ ' + ${#numbers.formatInteger(ad.price, 1, 'COMMA')}">₹ 0</p>
+                <p class="muted" th:text="${ad.city} + ', posted ' + ${#temporals.format(ad.createdAt, 'd MMM yyyy')}">City</p>
+
+                <!-- Buyer buttons: hidden when logged out or when this is your own ad -->
+                <div class="side-actions" th:if="${session.userId != null and session.userId != ad.sellerId}">
+                    <a class="btn btn-lane btn-block" th:href="@{/messages/{adId}/{userId}(adId=${ad.id},userId=${ad.sellerId})}">Message seller</a>
+                    <form th:action="@{/ads/{id}/favourite(id=${ad.id})}" method="post">
+                        <button class="btn btn-outline btn-block" type="submit"
+                                th:text="${favourite} ? '♥ Saved to favourites' : '♡ Save to favourites'">Save</button>
+                    </form>
+                </div>
+
+                <!-- Seller's own ad -->
+                <div class="side-actions" th:if="${session.userId != null and session.userId == ad.sellerId}">
+                    <p class="note">This is your ad.</p>
+                    <a class="btn btn-dark btn-block" th:href="@{/ads/{id}/edit(id=${ad.id})}">Edit ad</a>
+                </div>
+
+                <!-- Logged out -->
+                <div class="side-actions" th:if="${session.userId == null}">
+                    <a class="btn btn-lane btn-block" th:href="@{/login}">Log in to contact the seller</a>
+                </div>
+            </div>
+
+            <div class="panel seller">
+                <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(ad.sellerName, 0, 1))}">L</span>
+                <div>
+                    <p class="seller-name" th:text="${ad.sellerName}">Seller name</p>
+                    <p class="muted" th:if="${session.userId != null}" th:text="'Phone ' + ${ad.sellerPhone}">Phone</p>
+                    <p class="muted" th:if="${session.userId == null}">Log in to see the phone number</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>

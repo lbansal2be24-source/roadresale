@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Messages - RoadResale')}"></head>
+<body class="app-page">
+<header th:replace="~{fragments :: navbar}"></header>
+
+<!-- Left: all chats. Right: a hint, because no chat is open yet. -->
+<main class="messenger">
+    <aside th:replace="~{fragments :: chatList(${chats}, '')}"></aside>
+    <section class="chat-panel chat-panel-empty">
+        <div>
+            <h2>Your messages</h2>
+            <p class="muted">Pick a chat on the left to read it and reply.</p>
+        </div>
+    </section>
+</main>
+</body>
+</html>

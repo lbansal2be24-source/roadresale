@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Chat with ' + ${otherUser.name} + ' - RoadResale')}"></head>
+<body class="app-page">
+<header th:replace="~{fragments :: navbar}"></header>
+
+<!-- Left: all chats. Right: this chat. -->
+<main class="messenger messenger-open">
+    <aside th:replace="~{fragments :: chatList(${chats}, ${ad.id + '-' + otherUser.id})}"></aside>
+
+    <section class="chat-panel">
+        <!-- Who I am talking to, and about which ad -->
+        <div class="chat-header">
+            <a class="chat-back" th:href="@{/messages}" aria-label="Back to all chats">&larr;</a>
+            <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(otherUser.name, 0, 1))}">T</span>
+            <div class="chat-header-name">
+                <strong th:text="${otherUser.name}">Name</strong>
+                <span class="muted" th:text="${ad.sellerId == otherUser.id} ? 'Seller' : 'Buyer'">Seller</span>
+            </div>
+            <a class="chat-ad" th:href="@{/ads/{id}(id=${ad.id})}">
+                <img th:if="${ad.photoPath != null}" th:src="@{${ad.photoPath}}" th:alt="${ad.title}">
+                <span>
+                    <span class="chat-ad-title" th:text="${ad.title}">Ad title</span>
+                    <span class="chat-ad-price" th:text="'₹ ' + ${#numbers.formatInteger(ad.price, 1, 'COMMA')}">₹ 0</span>
+                </span>
+            </a>
+        </div>
+
+        <!-- The messages. The script below reloads only this box every 5 seconds. -->
+        <div class="chat-messages" id="chat-messages">
+            <p class="chat-start" th:if="${messages.isEmpty()}">No messages yet. Say hello and ask about the vehicle.</p>
+            <th:block th:each="m, step : ${messages}">
+                <!-- A date line before the first message of each day -->
+                <p class="day-line" th:if="${step.first or messages[step.index - 1].dayLabel != m.dayLabel}"
+                   th:text="${m.dayLabel}">Today</p>
+                <!-- My messages get the class "mine" and sit on the right -->
+                <div class="bubble" th:classappend="${m.senderId == session.userId} ? 'mine'">
+                    <p th:text="${m.body}">Message text</p>
+                    <span class="bubble-time" th:text="${#temporals.format(m.createdAt, 'HH:mm')}">18:08</span>
+                </div>
+            </th:block>
+        </div>
+
+        <p class="alert alert-error chat-error" th:if="${error != null}" th:text="${error}">Error</p>
+
+        <!-- Type a message. Enter sends, Shift + Enter makes a new line. -->
+        <form class="composer" th:action="@{/messages/{adId}/{userId}(adId=${ad.id},userId=${otherUser.id})}" method="post">
+            <textarea id="message-input" name="body" rows="1" maxlength="1000" required
+                      placeholder="Type a message" aria-label="Message"></textarea>
+            <button class="btn btn-lane" type="submit">Send</button>
+        </form>
+    </section>
+</main>
+
+<script>
+    var box = document.getElementById("chat-messages");
+    var input = document.getElementById("message-input");
+
+    // Always show the newest message
+    function scrollToBottom() {
+        box.scrollTop = box.scrollHeight;
+    }
+    scrollToBottom();
+    input.focus();
+
+    // Enter sends the message, Shift + Enter adds a new line
+    input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            if (input.value.trim() !== "") {
+                input.form.submit();
+            }
+        }
+    });
+
+    // Auto-refresh: every 5 seconds, load this page again in the background
+    // and copy the messages box and the chat list. The text you are typing is not touched.
+    setInterval(function () {
+        if (document.hidden) {
+            return;   // tab not visible: do nothing
+        }
+        fetch(window.location.href)
+            .then(function (response) { return response.text(); })
+            .then(function (html) {
+                var newPage = new DOMParser().parseFromString(html, "text/html");
+                var newBox = newPage.getElementById("chat-messages");
+                if (newBox && newBox.innerHTML !== box.innerHTML) {
+                    box.innerHTML = newBox.innerHTML;
+                    scrollToBottom();
+                }
+                // Also update the chat list on the left (latest message and time)
+                var list = document.querySelector(".chat-list");
+                var newList = newPage.querySelector(".chat-list");
+                if (list && newList && newList.innerHTML !== list.innerHTML) {
+                    list.innerHTML = newList.innerHTML;
+                }
+            });
+    }, 5000);
+</script>
+</body>
+</html>

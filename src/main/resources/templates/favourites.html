@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Favourites - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="container page">
+    <h1>Favourites</h1>
+
+    <div class="empty" th:if="${ads.isEmpty()}">
+        <h3>No saved vehicles yet</h3>
+        <p>Open any ad and click "Save to favourites" to keep it here.</p>
+        <a class="btn btn-dark" th:href="@{/}">Browse vehicles</a>
+    </div>
+
+    <div class="grid">
+        <th:block th:each="ad : ${ads}">
+            <a th:replace="~{fragments :: adCard(${ad})}"></a>
+        </th:block>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>
