@@ -2,4 +2,5 @@ target/
 uploads/
 .idea/
 *.iml
-secret.properties.DS_Store
+secret.properties
+.DS_Store
