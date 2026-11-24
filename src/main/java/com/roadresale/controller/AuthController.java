@@ -2,6 +2,7 @@ package com.roadresale.controller;
 
 import com.roadresale.model.User;
 import com.roadresale.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -46,13 +47,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public String login(@RequestParam String email, @RequestParam String password,
-                        HttpSession session, Model model) {
+                        HttpSession session, HttpServletRequest request, Model model) {
         User user = userService.login(email, password);
         if (user == null) {
             model.addAttribute("error", "Wrong email or password.");
             model.addAttribute("email", email);
             return "login";
         }
+        // New session id after login, so an old id cannot be reused (session fixation protection).
+        request.changeSessionId();
         // Remember who is logged in. The session lives on the server.
         session.setAttribute("userId", user.getId());
         session.setAttribute("userName", user.getName());

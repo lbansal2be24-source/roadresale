@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Something went wrong - RoadResale')}"></head>
+<body>
+<header th:replace="~{fragments :: navbar}"></header>
+
+<main class="auth">
+    <div class="panel auth-card">
+        <h1>Something went wrong</h1>
+        <p class="muted">The page you asked for could not be shown. Please check the address or go back to the home page.</p>
+        <a class="btn btn-lane btn-block" th:href="@{/}">Back to home</a>
+    </div>
+</main>
+
+<footer th:replace="~{fragments :: footer}"></footer>
+</body>
+</html>
