@@ -1,0 +1,164 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: RoadResale - one-click deploy (EC2 + RDS MySQL) for the AWS Academy Cloud Foundations Sandbox lab
+
+Parameters:
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Default: Roadresale2026
+    MinLength: 8
+    MaxLength: 30
+    AllowedPattern: '[A-Za-z0-9]*'
+    Description: Database password (letters and numbers only, 8-30 characters). Change it if you like.
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RoadResale web server - allow port 8080 from anywhere
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RoadResale database - allow MySQL only from the web server
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt WebSecurityGroup.GroupId
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    Properties:
+      Engine: mysql
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: '20'
+      StorageType: gp2
+      MasterUsername: admin
+      MasterUserPassword: !Ref DBPassword
+      DBName: roadresale
+      MultiAZ: false
+      PubliclyAccessible: false
+      MonitoringInterval: 0
+      BackupRetentionPeriod: 0
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+
+  WebServer:
+    Type: AWS::EC2::Instance
+    DependsOn: Database
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t3.micro
+      KeyName: vockey
+      IamInstanceProfile: LabInstanceProfile
+      SecurityGroupIds:
+        - !GetAtt WebSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: roadresale-server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          exec > /var/log/roadresale-setup.log 2>&1
+          export HOME=/root
+          dnf install -y java-17-amazon-corretto-devel git maven
+          git clone https://github.com/lbansal2be24-source/roadresale.git /opt/app
+          cd /opt/app
+          mvn -q -DskipTests package
+          cat > /etc/systemd/system/roadresale.service <<'EOF'
+          [Unit]
+          Description=RoadResale
+          After=network-online.target
+          [Service]
+          WorkingDirectory=/opt/app
+          EnvironmentFile=/etc/roadresale.env
+          ExecStart=/usr/bin/java -Xmx450m -jar /opt/app/target/roadresale-1.0.jar
+          Restart=always
+          RestartSec=10
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          cat > /etc/roadresale.env <<'EOF'
+          SPRING_DATASOURCE_URL=jdbc:mysql://${Database.Endpoint.Address}:3306/roadresale?useSSL=false&allowPublicKeyRetrieval=true
+          SPRING_DATASOURCE_USERNAME=admin
+          SPRING_DATASOURCE_PASSWORD=${DBPassword}
+          APP_STORAGE=local
+          EOF
+          chmod 600 /etc/roadresale.env
+          systemctl daemon-reload
+          systemctl enable --now roadresale
+          # ---------- demo data (3 users, 12 ads with photos, favourites, messages) ----------
+          mkdir -p /opt/app/uploads
+          mk() { printf '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500"><rect width="800" height="500" fill="%s"/><text x="400" y="240" font-family="Arial" font-size="54" font-weight="bold" fill="white" text-anchor="middle">%s</text><text x="400" y="310" font-family="Arial" font-size="32" fill="white" text-anchor="middle">%s</text></svg>' "$2" "$3" "$4" > /opt/app/uploads/$1.svg; }
+          mk c1 '#1f4e79' 'Maruti Swift' 'VXi 2019'
+          mk c2 '#7b2d26' 'Hyundai Creta' 'SX 2020'
+          mk c3 '#2e5e4e' 'Honda City' 'ZX 2018'
+          mk c4 '#4a3f6b' 'Tata Nexon' 'XZ+ 2021'
+          mk c5 '#5c5c5c' 'Mahindra Thar' 'LX 2022'
+          mk c6 '#8a5a00' 'Toyota Innova' 'Crysta 2017'
+          mk b1 '#b3261e' 'Royal Enfield' 'Classic 350'
+          mk b2 '#0b6e99' 'Yamaha R15' 'V3 2020'
+          mk b3 '#2d6a4f' 'Bajaj Pulsar' 'NS200'
+          mk b4 '#444444' 'KTM Duke 200' '2019'
+          mk b5 '#c05621' 'Honda Activa 6G' '2021'
+          mk b6 '#6b2d5c' 'TVS Apache RTR' '160 4V'
+          dnf install -y mariadb105
+          for i in $(seq 1 60); do
+            if mysql -h ${Database.Endpoint.Address} -uadmin -p${DBPassword} roadresale -e 'select 1 from ads limit 1' ; then break; fi
+            sleep 5
+          done
+          cat > /opt/seed.sql <<'SEEDEOF'
+          INSERT IGNORE INTO users (id,name,email,phone,password_hash) VALUES
+           (1,'Rahul Sharma','rahul@demo.com','9876543210','$2a$10$OolfS22cxW1yf/CdQYdK9.OwV9/utc6180aMaocJpquyz1tSGiaZ2'),
+           (2,'Priya Singh','priya@demo.com','9876501234','$2a$10$OolfS22cxW1yf/CdQYdK9.OwV9/utc6180aMaocJpquyz1tSGiaZ2'),
+           (3,'Amit Verma','amit@demo.com','9812345678','$2a$10$OolfS22cxW1yf/CdQYdK9.OwV9/utc6180aMaocJpquyz1tSGiaZ2');
+          INSERT INTO ads (seller_id,title,description,price,city,status,photo_path,vehicle_type,brand,model,model_year,km_driven,fuel_type,transmission,engine_cc)
+          SELECT * FROM (
+           SELECT 1 a,'Maruti Swift VXi - single owner' b,'Well maintained, first owner, all service records available. New tyres.' c,425000 d,'Patiala' e,'ACTIVE' f,'/uploads/c1.svg' g,'CAR' h,'Maruti' i,'Swift' j,2019 k,38000 l,'Petrol' m,'Manual' n,NULL o
+           UNION ALL SELECT 2,'Hyundai Creta SX Diesel','Sunroof, touchscreen, rear camera. Insurance valid till next year.',1250000,'Chandigarh','ACTIVE','/uploads/c2.svg','CAR','Hyundai','Creta',2020,45000,'Diesel','Automatic',NULL
+           UNION ALL SELECT 3,'Honda City ZX CVT','Top variant, leather seats, excellent condition. No accidents.',780000,'Ludhiana','ACTIVE','/uploads/c3.svg','CAR','Honda','City',2018,52000,'Petrol','Automatic',NULL
+           UNION ALL SELECT 1,'Tata Nexon XZ+ Petrol','5-star safety rating, under warranty, lady driven.',950000,'Delhi','ACTIVE','/uploads/c4.svg','CAR','Tata','Nexon',2021,22000,'Petrol','Manual',NULL
+           UNION ALL SELECT 2,'Mahindra Thar LX Hard Top','Diesel 4x4, alloy wheels, stock condition, never off-roaded.',1650000,'Chandigarh','ACTIVE','/uploads/c5.svg','CAR','Mahindra','Thar',2022,15000,'Diesel','Manual',NULL
+           UNION ALL SELECT 3,'Toyota Innova Crysta 2.4 GX','7 seater, family car, very comfortable. Regular service at Toyota.',1480000,'Patiala','SOLD','/uploads/c6.svg','CAR','Toyota','Innova',2017,95000,'Diesel','Manual',NULL
+           UNION ALL SELECT 1,'Royal Enfield Classic 350','Original paint, new battery, all papers clear.',145000,'Patiala','ACTIVE','/uploads/b1.svg','BIKE','Royal Enfield','Classic 350',2020,18000,'Petrol',NULL,349
+           UNION ALL SELECT 2,'Yamaha R15 V3','Blue racing edition, stock exhaust, smooth engine.',135000,'Delhi','ACTIVE','/uploads/b2.svg','BIKE','Yamaha','R15 V3',2020,21000,'Petrol',NULL,155
+           UNION ALL SELECT 3,'Bajaj Pulsar NS200','Good mileage, new chain kit, urgent sale.',88000,'Ludhiana','ACTIVE','/uploads/b3.svg','BIKE','Bajaj','Pulsar NS200',2019,30000,'Petrol',NULL,199
+           UNION ALL SELECT 1,'KTM Duke 200','Orange, single owner, service done at 25000 km.',120000,'Chandigarh','ACTIVE','/uploads/b4.svg','BIKE','KTM','Duke 200',2019,27000,'Petrol',NULL,199
+           UNION ALL SELECT 2,'Honda Activa 6G','Daily use scooter, very low running, 2 keys.',62000,'Patiala','ACTIVE','/uploads/b5.svg','BIKE','Honda','Activa 6G',2021,12000,'Petrol',NULL,110
+           UNION ALL SELECT 3,'TVS Apache RTR 160 4V','Black, disc brake, ABS version, well kept.',92000,'Delhi','ACTIVE','/uploads/b6.svg','BIKE','TVS','Apache RTR 160 4V',2021,16000,'Petrol',NULL,160
+          ) t WHERE NOT EXISTS (SELECT 1 FROM ads);
+          INSERT IGNORE INTO favourites (user_id,ad_id) VALUES (1,2),(1,8),(2,1),(3,7);
+          INSERT INTO messages (ad_id,sender_id,receiver_id,body)
+          SELECT * FROM (
+           SELECT 1 a,2 b,1 c,'Hi, is the Swift still available? Can you do 4.1 lakh?' d
+           UNION ALL SELECT 1,1,2,'Yes it is available. Final price 4.15 lakh, you can come and see it.'
+           UNION ALL SELECT 8,1,2,'Is the R15 negotiable? Where can I see it?'
+          ) m WHERE NOT EXISTS (SELECT 1 FROM messages);
+          SEEDEOF
+          mysql -h ${Database.Endpoint.Address} -uadmin -p${DBPassword} roadresale < /opt/seed.sql
+          echo SEED_DONE
+          # ---------- real photos from the repo (demo-photos/*.jpg); ads without a photo keep their picture card ----------
+          for f in /opt/app/demo-photos/*.jpg; do
+            [ -f "$f" ] || continue
+            n=$(basename "$f" .jpg)
+            cp "$f" /opt/app/uploads/$n.jpg
+            mysql -h ${Database.Endpoint.Address} -uadmin -p${DBPassword} roadresale -e "UPDATE ads SET photo_path='/uploads/$n.jpg' WHERE photo_path='/uploads/$n.svg'"
+          done
+          echo SETUP_DONE
+
+Outputs:
+  WebsiteURL:
+    Description: Open this in your browser (wait 3-5 minutes after the stack finishes while the app builds)
+    Value: !Sub 'http://${WebServer.PublicIp}:8080'
+  ServerInstanceId:
+    Value: !Ref WebServer
